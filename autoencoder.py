@@ -31,7 +31,7 @@ test_loader = data_utils.DataLoader(
 				transforms.ToTensor(),
 				transforms.Normalize((0.1307,), (0.3081,))
 			])),
-	batch_size=100, shuffle=True)
+	batch_size=1000, shuffle=True)
 
 class my_autoencoder(nn.Module):#inheriting from nn.Module
 	def __init__(self, in_size, hd_size):
@@ -43,6 +43,7 @@ class my_autoencoder(nn.Module):#inheriting from nn.Module
 		#define layer in-out parameters
 		self.encode = nn.Sequential(
 								nn.Linear(in_size, hd_size),
+								nn.BatchNorm1d(hd_size),
 								nn.ReLU(True))
 
 		self.decode = nn.Sequential(
