@@ -6,6 +6,8 @@ from torch.nn import functional as F
 from torchvision import datasets, transforms
 from torchvision.utils import save_image
 from mdlstm import mdlstm
+import numpy as np
+import matplotlib.pyplot as plt
 import os
 
 
@@ -37,17 +39,23 @@ class my_test_model(nn.Module):
         self.feature_sz = feature_sz
         self.hidden_sz = hidden_sz
         self.my_mdlstm = mdlstm(feature_sz, hidden_sz, [28, 28])
-        self.fc1 = nn.Linear(feature_sz * hidden_sz,fc_hd_sz)
+        self.conv1 = nn.Conv2d(hidden_sz, 20, 5)
+        self.fc1 = nn.Linear(12*12*20,fc_hd_sz)
         self.fc2 = nn.Linear(fc_hd_sz, output_sz)
         self.softmax = nn.Softmax()
 
     def forward(self, input):
         data = input.view(-1, 784)
         x = self.my_mdlstm(data)
+        x = x.view(-1, self.hidden_sz, 28, 28)
+        save_image(x[0][0].data.cpu(),
+         'teste' + '.png', nrow=1)
+        x = self.conv1(x)
+        x = F.max_pool2d(x, 2).view(-1, 12*12*20)
         x = F.relu(self.fc1(x))
         return self.softmax(self.fc2(x))
 
-model = my_test_model(784, 5, 200, 10)
+model = my_test_model(784, 15, 200, 10)
 if has_cuda:
     model.cuda()
 

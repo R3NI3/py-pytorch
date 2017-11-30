@@ -11,13 +11,13 @@ class mdlstm(nn.Module):
     def __init__(self, input_size, hidden_size, img_dim):
         super(mdlstm, self).__init__()
         self.img_dim = img_dim
-        self.mdlstm_dim = 2
+        self.mdlstm_dim = 1
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.weight_ih = nn.Parameter(torch.Tensor(4 * hidden_size, 1))
-        self.weight_hh = nn.Parameter(torch.Tensor(self.mdlstm_dim, 4 * hidden_size, hidden_size))
+        self.weight_hh = nn.Parameter(torch.Tensor(4 * hidden_size, hidden_size))
         self.bias_ih = nn.Parameter(torch.Tensor(4 * hidden_size)) # apenas 1 bias msm?
-        self.bias_hh = nn.Parameter(torch.Tensor(self.mdlstm_dim, 4 * hidden_size))
+        self.bias_hh = nn.Parameter(torch.Tensor(4 * hidden_size))
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -36,26 +36,29 @@ class mdlstm(nn.Module):
             # calc of past dimensions for 1-d to 2-d
             #prof = idx // 1d_len*2d_len... new_idx = idx % 1d_len*2d_len...
             # TODO: Add generic calculation for d dimensions
-            row = (pixel_idx // self.img_dim[1]) # idx divided column length]
-            col =(pixel_idx % self.img_dim[1])
+            #row = (pixel_idx // self.img_dim[1]) # idx divided column length]
+            row = pixel_idx
+            #col =(pixel_idx % self.img_dim[1])
 
             if (row > 0):
-                h_past[0] = h_matrix[(row-1)*self.img_dim[1] + col]
-                s_past[0] = s_matrix[(row-1)*self.img_dim[1] + col]
+                h_past[0] = h_matrix[(row-1)]
+                s_past[0] = s_matrix[(row-1)]
+            #    h_past[0] = h_matrix[(row-1)*self.img_dim[1] + col]
+            #    s_past[0] = s_matrix[(row-1)*self.img_dim[1] + col]
 
-            if (col > 0):
-                h_past[1] = h_matrix[(row)*self.img_dim[1] + col-1]
-                s_past[1] = s_matrix[(row)*self.img_dim[1] + col-1]
+            #if (col > 0):
+            #    h_past[1] = h_matrix[(row)*self.img_dim[1] + col-1]
+            #    s_past[1] = s_matrix[(row)*self.img_dim[1] + col-1]
 
             for dim in range(self.mdlstm_dim):
                 if (dim ==0 and row > 0):
-                    hidden = F.linear(h_past[dim], self.weight_hh[dim], self.bias_hh[dim])
+                    hidden = F.linear(h_past[dim], self.weight_hh, self.bias_hh)
                 elif(dim ==0):
-                    hidden = F.linear(Variable(torch.zeros(1,self.hidden_size)), self.weight_hh[dim], self.bias_hh[dim])
+                    hidden = F.linear(Variable(torch.zeros(1,1)), self.weight_hh, self.bias_hh)
                 if (dim ==1 and col > 0):
-                    hidden = hidden + F.linear(h_past[dim], self.weight_hh[dim], self.bias_hh[dim])
+                    hidden = hidden + F.linear(h_past[dim], self.weight_hh, self.bias_hh)
                 elif(dim == 1):
-                    hidden = hidden + F.linear(Variable(torch.zeros(1,self.hidden_size)), self.weight_hh[dim], self.bias_hh[dim])
+                    hidden = hidden + F.linear(Variable(torch.zeros(1,1)), self.weight_hh, self.bias_hh)
             gates = (F.linear(pixels, self.weight_ih, self.bias_ih) + hidden)
 
 
@@ -74,6 +77,7 @@ class mdlstm(nn.Module):
                     s_matrix[pixel_idx] = s_matrix[pixel_idx] + (forgetgate * s_past[dim])
 
             s_matrix[pixel_idx] = s_matrix[pixel_idx] + (ingate * cellgate)
+            #print(s_matrix[pixel_idx])
             h_matrix.append(outgate * F.tanh(s_matrix[pixel_idx]))
 
         h_tensor = torch.cat(h_matrix,1)
