@@ -18,9 +18,9 @@ directory = os.path.dirname(path_resume)
 if not os.path.exists(directory):
     os.makedirs(directory)
 
-batch_size = 5
+batch_size = 50
 test_batch_size = 10000
-log_interval = 100
+log_interval = 1
 epochs = 100
 
 kwargs = {'num_workers': 1, 'pin_memory': True} if has_cuda else {}
@@ -38,24 +38,36 @@ class my_test_model(nn.Module):
         super(my_test_model, self).__init__()
         self.feature_sz = feature_sz
         self.hidden_sz = hidden_sz
-        self.my_mdlstm = mdlstm(feature_sz, hidden_sz, [28, 28])
-        self.conv1 = nn.Conv2d(hidden_sz, 20, 5)
-        self.fc1 = nn.Linear(12*12*20,fc_hd_sz)
-        self.fc2 = nn.Linear(fc_hd_sz, output_sz)
+        self.conv1 = nn.Conv2d(1, 10, 5)
+        self.my_mdlstm1 = mdlstm(10, 20, [12, 12])
+        self.conv2 = nn.Conv2d(20, 30, 5)
+        self.my_mdlstm2 = mdlstm(30, 40, [4, 4])
+        self.fc1 = nn.Linear(4*4*40,100)
+        self.fc2 = nn.Linear(100,10)
         self.softmax = nn.Softmax()
 
     def forward(self, input):
-        data = input.view(-1, 784)
-        x = self.my_mdlstm(data)
-        x = x.view(-1, self.hidden_sz, 28, 28)
+        data = input.view(-1,1,28,28)
+        x = self.conv1(data)
+        x = F.max_pool2d(x, 2)
+        x = F.tanh(x)
+        x = x.view(-1, 10, 12*12)
+        x = self.my_mdlstm1(x)
+
+        x = x.view(-1,20,12,12)
         save_image(x[0][0].data.cpu(),
          'teste' + '.png', nrow=1)
-        x = self.conv1(x)
-        x = F.max_pool2d(x, 2).view(-1, 12*12*20)
-        x = F.relu(self.fc1(x))
-        return self.softmax(self.fc2(x))
+        x = self.conv2(x)
+        x = F.max_pool2d(x, 2)
+        x = F.tanh(x)
+        x = x.view(-1, 30,4*4)
+        x = self.my_mdlstm2(x)
+        x = x.view(-1,4*4*40)
+        x = F.tanh(self.fc1(x))
+        x = (self.fc2(x))
+        return self.softmax(x)
 
-model = my_test_model(784, 15, 200, 10)
+model = my_test_model(784, 2, 200, 10)
 if has_cuda:
     model.cuda()
 
@@ -81,11 +93,11 @@ def train(epoch):
         train_loss += loss.data[0]
         optimizer.step()
 
-        if batch_idx % log_interval == 0:
+        if batch_idx % 1 == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader),
-                loss.data[0] / len(data)))
+                loss.data[0]))
 
     print('====> Epoch: {} Average loss: {:.4f}'.format(
           epoch, train_loss / len(train_loader.dataset)))
